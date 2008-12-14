@@ -1,0 +1,108 @@
+#!/usr/bin/env ruby
+# virtualrb - Virtualize Ruby installations
+#
+# Copyright (C) 2008  Christian Neukirchen <chneukirchen@gmail.com>
+# Licensed under the same terms as Ruby itself.
+#
+# Idea inspired by Python's virtualenv: http://pypi.python.org/pypi/virtualenv
+
+require 'rbconfig'
+if defined? RUBY_VIRTUALRB
+  abort "Don't run virtual.rb from a virtualized ruby, or hell will break lose."
+end
+
+require 'fileutils'
+
+def usage
+  abort "Usage: #{$0} ROOT <RUBY>"
+end
+
+def find_ruby
+  File.join(Config::CONFIG['bindir'], Config::CONFIG['ruby_install_name'])
+end
+
+def find_rbconfig
+  $:.map { |dir| dir + "/rbconfig.rb" }.find { |file| File.exist?(file) }
+end
+
+root = ARGV[0] || usage
+ruby = ARGV[1] || find_ruby
+
+root = File.expand_path(root)
+ruby = File.expand_path(ruby)
+
+version = `#{ruby} -v`
+
+FileUtils.mkdir_p(root)
+FileUtils.mkdir_p("#{root}/lib/site_ruby/1.8")
+FileUtils.mkdir_p("#{root}/bin")
+
+File.open("#{root}/bin/ruby", "w") { |script|
+  script.write(<<EOF)
+#!/bin/sh
+
+# what if : is added at the end?
+RUBYLIB="#{root}/lib/site_ruby/1.8:$RUBYLIB"
+RUBYPATH="#{root}/bin:$RUBYPATH"
+PATH="#{root}/bin:$PATH"
+
+if [ "`#{ruby} -v`" == #{version.chomp.dump} ]; then
+  exec #{ruby} "$@";
+else
+  echo "Version mismatch.  Got '`#{ruby} -v`', required '#{version}'" >/dev/stderr
+  echo "If this is intentional, refresh the virtualized root by running virtualrb again." >/dev/stderr
+  exit -1
+fi
+EOF
+}
+File.chmod(0755, "#{root}/bin/ruby")
+
+File.open("#{root}/bin/activate", "w") { |script|
+  script.write(<<EOF)
+#!/bin/sh
+if [ -z "$PS1" ]; then
+  echo "activate must be run by sourcing." >/dev/stderr
+  exit -1
+fi
+
+if [ "$_VRB_ROOT" ]; then
+  echo "Don't activate without deactivating first." >/dev/stderr
+  return
+fi
+
+_VRB_ROOT="#{root}"
+_OLD_VRB_PATH="$PATH"
+_OLD_VRB_PS1="$PS1"
+
+deactivate() {
+  export PATH="$_OLD_VRB_PATH"
+  export PS1="$_OLD_VRB_PS1"
+  hash -r
+  unset -f deactivate
+}
+
+export PS1="(`basename "$_VRB_ROOT"`) $PS1"
+export PATH="$_VRB_ROOT/bin:$PATH"
+hash -r
+EOF
+}
+File.chmod(0755, "#{root}/bin/activate")
+
+File.open("#{root}/lib/site_ruby/1.8/rbconfig.rb", "w") { |script|
+  script.puts "# This file has been patched by virtual.rb on #{Time.now}"
+  script.puts "# for #{ruby}"
+  script.puts "# relocated to #{root}"
+  script.puts "# #{version}"
+  script.puts "RUBY_VIRTUALRB = true"
+  script.puts
+  script.write(File.read(find_rbconfig).
+               gsub(/.*TOPDIR =.*/, "  TOPDIR = #{root.dump}").
+               gsub(/.*CONFIG\["sitedir"\] =.*/,
+                    "  CONFIG[\"sitedir\"] = #{(root + "/lib/site_ruby").dump}").
+               gsub(/.*CONFIG\["archdir"\] =.*/,
+                    "  CONFIG[\"archdir\"] = #{Config::CONFIG["archdir"].dump}").
+               gsub(/.*RUBY_FRAMEWORK.*/, ''). # no special deal on OS X
+               gsub(/.*APPLE_GEM_HOME.*/, '')  #      ----- " -----
+               )
+}
+

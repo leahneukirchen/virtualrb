@@ -1,0 +1,37 @@
+= virtualrb - Virtualize Ruby installations
+
+Copyright (C) 2008  Christian Neukirchen <chneukirchen@gmail.com>
+Licensed under the same terms as Ruby itself.
+
+THIS IS ALPHA SOFTWARE THAT HAS NOT BEEN TESTED WELL---USE AT YOUR OWN RISK!
+
+Idea inspired by Python's virtualenv: http://pypi.python.org/pypi/virtualenv
+
+Usage:  ruby virtualrb.rb ROOT
+          to set up a new virtual Ruby in ROOT/bin/ruby
+        ruby virtualrb.rb ROOT /usr/bin/ruby-1.8.4
+          to set up a new virtual Ruby using the given interpreter
+          (default: version that calls virtualrb.rb.)
+
+If you use a sh(1)-compatible shell, you can enter the virtualized setup with:
+  source ROOT/bin/activate
+and leave it again with
+  deactivate
+
+What works:
+* Plain Ruby libraries.
+* Ruby apps with correct she-bang line, pointing to the virtualized Ruby.
+* Installing Rubygems, including building native extensions.
+* Only tested on OS X so far.
+
+What won't work:
+* Too clever software.  Especially it must not modify $archdir.
+
+How it works:
+* We build a modified rbconfig and build a wrapper script for Ruby
+  to call it with appropriate $RUBYLIB and $RUBYPATH.
+
+To do:
+* Build scripts to automatically install Rubygems, dependencies,
+  software from source control.
+* Dynamic relocation (no hard-coded paths).
