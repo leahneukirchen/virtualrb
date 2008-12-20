@@ -88,6 +88,13 @@ EOF
 }
 File.chmod(0755, "#{root}/bin/ruby")
 
+File.open("#{root}/bin/irb", "w") { |script|
+  script.puts "#!#{root}/bin/ruby"
+  script.puts "# was:"
+  script.puts File.read(File.dirname(ruby) + "/irb")
+}
+File.chmod(0755, "#{root}/bin/irb")
+
 File.open("#{root}/bin/activate", "w") { |script|
   script.write(<<EOF)
 #!/bin/sh
