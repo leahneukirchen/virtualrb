@@ -29,6 +29,7 @@ end
 gems = false
 gemversion = ">=0"
 ruby = find_ruby
+inherit = true
 
 opts = OptionParser.new("", 30, '  ') { |opts|
   opts.banner = "Usage: virtualrb [options] DIRECTORY"
@@ -40,6 +41,9 @@ opts = OptionParser.new("", 30, '  ') { |opts|
   }
   opts.on("--with-ruby PATH", "use the Ruby binary in PATH", String) { |bin|
     rubybin = bin
+  }
+  opts.on("--no-inherit", "don't inherit the site path from Ruby", String) { |bin|
+    inherit = false
   }
 
   opts.on("-h", "--help", "Show this message") do
@@ -64,6 +68,7 @@ root = File.expand_path(root)
 ruby = File.expand_path(ruby)
 
 version = `#{ruby} -v`
+cfg = Marshal.load `#{ruby} -r rbconfig -e 'Marshal.dump Config::CONFIG, STDOUT'`
 
 puts "* Setting up a virtual Ruby for"
 puts"    #{version}"
@@ -133,10 +138,16 @@ File.open("#{root}/lib/site_ruby/1.8/site.rb", "w") { |script|
   script.puts "# relocated to #{root}"
   script.puts "# #{version}"
   script.puts
-  script.write <<EOF
-RUBY_VIRTUALRB = true
-$LOAD_PATH.unshift(#{"#{root}/lib/site_ruby/1.8".dump})
-EOF
+  script.puts "RUBY_VIRTUALRB = true"
+
+  unless inherit
+    %w{sitedir sitelibdir sitearchdir}.each { |dir|
+      script.puts "$LOAD_PATH.delete(#{cfg[dir].dump})"
+    }
+  end
+
+  script.puts "$LOAD_PATH.unshift(#{"#{root}/lib/site_ruby/1.8".dump})"
+  script.puts "$LOAD_PATH.unshift(#{"#{root}/lib/site_ruby/1.8/#{cfg["sitearch"]}".dump})"
 
   if gems
     script.write <<EOF
@@ -167,7 +178,7 @@ File.open("#{root}/lib/site_ruby/1.8/rbconfig.rb", "w") { |script|
                           'TOPDIR' => root,
                           'CONFIG["ruby_install_name"]' => "ruby",
                           'CONFIG["sitedir"]' => root + "/lib/site_ruby",
-                          'CONFIG["archdir"]' => Config::CONFIG["archdir"])
+                          'CONFIG["archdir"]' => cfg["archdir"])
 
   script.write(config.
                gsub(/.*RUBY_FRAMEWORK.*/, ''). # no special deal on OS X
