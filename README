@@ -7,33 +7,70 @@ THIS IS ALPHA SOFTWARE THAT HAS NOT BEEN TESTED WELL---USE AT YOUR OWN RISK!
 
 Idea inspired by Python's virtualenv: http://pypi.python.org/pypi/virtualenv
 
-Usage:  ruby virtualrb.rb ROOT
-          to set up a new virtual Ruby in ROOT/bin/ruby
-        ruby virtualrb.rb --with-ruby=/usr/bin/ruby-1.8.4 ROOT
-          to set up a new virtual Ruby using the given interpreter
-          (default: version that calls virtualrb.)
-        ruby virtualrb.rb --with-rubygems ROOT
-          to set up a Rubygems installation as well (you need to have
-          the rubygems-update gem globally installed.)
+
+== Rationale
+
+Do you want to play with Ruby libraries and gems, but don't want to
+mess up your system installation?
+
+Do you need to run several applications on the same system and want
+full control over the installed versions?
+
+Do you need to test your code under various setups?
+
+Are you a user and want to install your own libraries and gems on a
+shared server without having to hack around?
+
+Then virtualrb is for you!  It creates a virtual Ruby installation
+where you can tinker around without modifiying the system Ruby.
+
+
+== Usage
+
+  ruby virtualrb.rb ROOT
+    to set up a new virtual Ruby in ROOT/bin/ruby
+
+  ruby virtualrb.rb --with-ruby=/usr/bin/ruby-1.8.4 ROOT
+    to set up a new virtual Ruby using the given interpreter
+    (default: version that calls virtualrb.)
+
+  ruby virtualrb.rb --with-rubygems ROOT
+    to automatically set up a Rubygems installation as well (you need
+    to have the rubygems-update gem installed.)
 
 If you use a sh(1)-compatible shell, you can enter the virtualized setup with:
   source ROOT/bin/activate
 and leave it again with
   deactivate
 
-What works:
+Or you just can run
+   ROOT/bin/ruby script.rb
+or
+   ROOT/bin/irb
+
+
+== What works
+
 * Plain Ruby libraries.
 * Ruby apps with correct she-bang line, pointing to the virtualized Ruby.
 * Installing Rubygems, including building native extensions.
 * Only tested on OS X so far.
 
-What won't work:
-* Too clever software.  Especially it must not modify $archdir.
 
-How it works:
-* We build a modified rbconfig and a site.rb that sets $LOAD_PATH and
-  build a wrapper script for Ruby to always load the site.rb.
+== What won't work
 
-To do:
+* Too clever (or too naive!) software.  Especially it must not
+  anything outside $site*dir.
+
+
+== How it works
+
+* We build a modified rbconfig.rb, a site.rb that sets $LOAD_PATH, and
+  build a wrapper script for Ruby to always load that site.rb at the
+  very beginning.
+
+
+== To do
+
 * Build scripts to automatically install software from source control.
-* Dynamic relocation (no hard-coded paths).
+* Dynamic relocation (no hard-coded paths).  Useful?
