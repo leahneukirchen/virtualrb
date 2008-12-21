@@ -78,7 +78,7 @@ FileUtils.mkdir_p("#{root}/bin")
 FileUtils.mkdir_p("#{root}/lib/site_ruby/1.8")
 FileUtils.mkdir_p("#{root}/lib/gemhome")  if gems
 
-File.open("#{root}/bin/ruby", "w") { |script|
+File.open("#{root}/bin/ruby", "wb") { |script|
   script.write(<<EOF)
 #!/bin/sh
 
@@ -93,14 +93,25 @@ EOF
 }
 File.chmod(0755, "#{root}/bin/ruby")
 
-File.open("#{root}/bin/irb", "w") { |script|
+File.open("#{root}/bin/irb", "wb") { |script|
   script.puts "#!#{root}/bin/ruby"
   script.puts "# was:"
   script.puts File.read(File.dirname(ruby) + "/irb")
 }
 File.chmod(0755, "#{root}/bin/irb")
 
-File.open("#{root}/bin/activate", "w") { |script|
+begin
+  naive = File.read(File.join(File.dirname(__FILE__), "naive-install"))
+  File.open("#{root}/bin/naive-install", "wb") { |script|
+    script.puts "#!#{root}/bin/ruby -s"
+    script.puts "# was:"
+    script.puts naive
+  }
+  File.chmod(0755, "#{root}/bin/naive-install")
+rescue Errno::ENOENT
+end
+
+File.open("#{root}/bin/activate", "wb") { |script|
   script.write(<<EOF)
 #!/bin/sh
 if [ -z "$PS1" ]; then
@@ -132,7 +143,7 @@ EOF
 }
 File.chmod(0755, "#{root}/bin/activate")
 
-File.open("#{root}/lib/site_ruby/1.8/site.rb", "w") { |script|
+File.open("#{root}/lib/site_ruby/1.8/site.rb", "wb") { |script|
   script.puts "# This file has been created by virtualrb on #{Time.now}"
   script.puts "# for #{ruby}"
   script.puts "# relocated to #{root}"
@@ -168,7 +179,7 @@ def patch_settings(config, values)
   }
 end
 
-File.open("#{root}/lib/site_ruby/1.8/rbconfig.rb", "w") { |script|
+File.open("#{root}/lib/site_ruby/1.8/rbconfig.rb", "wb") { |script|
   script.puts "# This file has been patched by virtualrb on #{Time.now}"
   script.puts "# for #{ruby}"
   script.puts "# relocated to #{root}"
