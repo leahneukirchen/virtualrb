@@ -54,7 +54,6 @@ or
 * Plain Ruby libraries.
 * Ruby apps with correct she-bang line, pointing to the virtualized Ruby.
 * Installing Rubygems, including building native extensions.
-* Only tested on OS X so far.
 
 
 == What won't work
