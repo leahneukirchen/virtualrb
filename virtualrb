@@ -10,7 +10,7 @@ VIRTUALRB_VERSION = "0.1"
 
 require 'rbconfig'
 if defined? RUBY_VIRTUALRB
-  abort "Don't run virtual.rb from a virtualized ruby, or hell will break lose."
+  abort "* Don't run virtual.rb from a virtualized ruby, or hell will break lose."
 end
 
 require 'optparse'
@@ -201,20 +201,21 @@ if gems
   begin
     require 'rubygems'
   rescue LoadError
-    abort "No Rubygems found, please install manually in the activated env."
+    abort "* No Rubygems found, please install manually in the activated env."
   end
 
   begin
     gem 'rubygems-update', gemversion
   rescue LoadError
     p $!
-    abort "No appropriate rubygems-update found, please gem install rubygems-update."
+    abort "* No appropriate rubygems-update found to install Rubygems into\n" +
+      "    the virtual env, please gem install rubygems-update."
   end
 
   update_dir = $LOAD_PATH.find { |fn| fn =~ /rubygems-update/ }
 
   if update_dir.nil?
-    abort "Internal error, where has the rubygems-update gone?  Please file a bug."
+    abort "* Internal error in virtualrb, where has the rubygems-update gone?  Please file a bug."
   else
     update_dir = File.dirname(update_dir)
     Dir.chdir update_dir
