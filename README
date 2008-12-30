@@ -59,7 +59,7 @@ or
 
 == What won't work
 
-* Too clever (or too naive!) software.  Especially it must not
+* Too clever (or too naive!) software.  Especially it must not install
   anything outside $site*dir.
 
 
