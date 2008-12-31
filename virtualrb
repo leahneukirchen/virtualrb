@@ -40,7 +40,7 @@ opts = OptionParser.new("", 30, '  ') { |opts|
     gemversion = version  if version
   }
   opts.on("--with-ruby PATH", "use the Ruby binary in PATH", String) { |bin|
-    rubybin = bin
+    ruby = bin
   }
   opts.on("--no-inherit", "don't inherit the site path from Ruby", String) { |bin|
     inherit = false
