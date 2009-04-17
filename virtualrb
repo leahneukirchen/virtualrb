@@ -82,7 +82,7 @@ File.open("#{root}/bin/ruby", "wb") { |script|
   script.write(<<EOF)
 #!/bin/sh
 
-if [ "`#{ruby} -v`" == #{version.chomp.dump} ]; then
+if [ "`#{ruby} -v`" = #{version.chomp.dump} ]; then
   exec #{ruby} -r "#{root}/lib/site_ruby/1.8/site.rb" "$@";
 else
   echo "Version mismatch.  Got '`#{ruby} -v`', required '#{version}'" >/dev/stderr
