@@ -9,7 +9,7 @@ fail() {
 DIR=$1
 [ -n "$DIR" ] || fail "usage: virtualrb DIR [RUBY]"
 
-RUBY=${2:-$(which ruby)} || fail "error: ruby $RUBY not found"
+RUBY=${2:-$(command -v ruby)} || fail "error: ruby $RUBY not found"
 mkdir "$DIR" 2>/dev/null || fail "error: target directory $DIR exists"
 VER=$($RUBY -v) || fail "error: can't find out Ruby version"
 
