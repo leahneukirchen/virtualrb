@@ -1,231 +1,55 @@
-#!/usr/bin/env ruby
-# virtualrb - Virtualize Ruby installations
-#
-# Copyright (C) 2008  Christian Neukirchen <chneukirchen@gmail.com>
-# Licensed under the same terms as Ruby itself.
-#
-# Idea inspired by Python's virtualenv: http://pypi.python.org/pypi/virtualenv
-
-VIRTUALRB_VERSION = "0.1"
-
-require 'rbconfig'
-if defined? RUBY_VIRTUALRB
-  abort "* Don't run virtual.rb from a virtualized ruby, or hell will break lose."
-end
-
-require 'optparse'
-require 'fileutils'
-
-def find_ruby
-  File.join(Config::CONFIG['bindir'], Config::CONFIG['ruby_install_name'])
-end
-
-def find_rbconfig(ruby=find_ruby)
-  eval(`#{ruby} -e 'p $:'`).
-    map { |dir| dir + "/rbconfig.rb" }.
-    find { |file| File.exist?(file) }
-end
-
-gems = false
-gemversion = ">=0"
-ruby = find_ruby
-inherit = true
-
-opts = OptionParser.new("", 30, '  ') { |opts|
-  opts.banner = "Usage: virtualrb [options] DIRECTORY"
-  opts.separator("")
-  opts.separator("Options:")
-  opts.on("--with-rubygems=[VERSION]", "set up virtualized Rubygems") { |version|
-    gems = true
-    gemversion = version  if version
-  }
-  opts.on("--with-ruby PATH", "use the Ruby binary in PATH", String) { |bin|
-    ruby = bin
-  }
-  opts.on("--no-inherit", "don't inherit the site path from Ruby", String) { |bin|
-    inherit = false
-  }
-
-  opts.on("-h", "--help", "Show this message") do
-    puts opts
-    exit
-  end
-
-  opts.on("-v", "--version", "Show version") do
-    puts "virtualrb #{VIRTUALRB_VERSION}"
-    exit
-  end
-
-  opts.separator("")
-  opts.separator("Default ruby: #{find_ruby}")
-
-  opts.parse! ARGV
-}
-
-root = ARGV[0] or abort opts.to_s
-
-root = File.expand_path(root)
-ruby = File.expand_path(ruby)
-
-version = `#{ruby} -v`
-cfg = Marshal.load `#{ruby} -r rbconfig -e 'Marshal.dump Config::CONFIG, STDOUT'`
-
-puts "* Setting up a virtual Ruby for"
-puts"    #{version}"
-
-FileUtils.mkdir_p(root)
-FileUtils.mkdir_p("#{root}/bin")
-FileUtils.mkdir_p("#{root}/lib/site_ruby/1.8")
-FileUtils.mkdir_p("#{root}/lib/gemhome")  if gems
-
-File.open("#{root}/bin/ruby", "wb") { |script|
-  script.write(<<EOF)
 #!/bin/sh
+# virtualrb DIR [RUBY] -- setup virtualized Ruby installation
 
-if [ "`#{ruby} -v`" = #{version.chomp.dump} ]; then
-  exec #{ruby} -r "#{root}/lib/site_ruby/1.8/site.rb" "$@";
-else
-  echo "Version mismatch.  Got '`#{ruby} -v`', required '#{version}'" >/dev/stderr
-  echo "If this is intentional, refresh the virtualized root by running virtualrb again." >/dev/stderr
-  exit -1
-fi
-EOF
+fail() {
+  echo "$@" 1>&2
+  exit 1
 }
-File.chmod(0755, "#{root}/bin/ruby")
 
-File.open("#{root}/bin/irb", "wb") { |script|
-  script.puts "#!#{root}/bin/ruby"
-  script.puts "# was:"
-  script.puts File.read(File.dirname(ruby) + "/irb")
-}
-File.chmod(0755, "#{root}/bin/irb")
+DIR=$1
+[ -n "$DIR" ] || fail "usage: virtualrb DIR [RUBY]"
 
-begin
-  naive = File.read(File.join(File.dirname(__FILE__), "naive-install"))
-  File.open("#{root}/bin/naive-install", "wb") { |script|
-    script.puts "#!#{root}/bin/ruby -s"
-    script.puts "# was:"
-    script.puts naive
-  }
-  File.chmod(0755, "#{root}/bin/naive-install")
-rescue Errno::ENOENT
-end
+RUBY=${2:-$(which ruby)} || fail "error: ruby $RUBY not found"
+mkdir "$DIR" 2>/dev/null || fail "error: target directory $DIR exists"
+VER=$($RUBY -v) || fail "error: can't find out Ruby version"
 
-File.open("#{root}/bin/activate", "wb") { |script|
-  script.write(<<EOF)
+cd "$DIR"
+DIR=$PWD
+
+mkdir bin gem lib
+ln -s bin gem/bin
+
+cat >bin/ruby <<EOF
 #!/bin/sh
-if [ -z "$PS1" ]; then
-  echo "activate must be run by sourcing." >/dev/stderr
-  exit -1
-fi
-
-if [ "$_VRB_ROOT" ]; then
-  echo "Don't activate without deactivating first." >/dev/stderr
-  return
-fi
-
-_VRB_ROOT="#{root}"
-_OLD_VRB_PATH="$PATH"
-_OLD_VRB_PS1="$PS1"
-
-deactivate() {
-  export PATH="$_OLD_VRB_PATH"
-  export PS1="$_OLD_VRB_PS1"
-  hash -r
-  unset _VRB_ROOT
-  unset -f deactivate
-}
-
-export PS1="(`basename "$_VRB_ROOT"`) $PS1"
-export PATH="$_VRB_ROOT/bin:$PATH"
-hash -r
+export GEM_HOME=$DIR/gem
+export GEM_PATH=$DIR/gem
+export GEMRC=$DIR/gemrc
+export PATH=\$GEM_PATH:\$PATH
+export RUBYLIB=$DIR/lib:$RUBYLIB
+export RUBY=$DIR/bin/ruby
+exec $RUBY "\$@"
 EOF
-}
-File.chmod(0755, "#{root}/bin/activate")
 
-File.open("#{root}/lib/site_ruby/1.8/site.rb", "wb") { |script|
-  script.puts "# This file has been created by virtualrb on #{Time.now}"
-  script.puts "# for #{ruby}"
-  script.puts "# relocated to #{root}"
-  script.puts "# #{version}"
-  script.puts
-  script.puts "RUBY_VIRTUALRB = true"
-
-  unless inherit
-    %w{sitedir sitelibdir sitearchdir}.each { |dir|
-      script.puts "$LOAD_PATH.delete(#{cfg[dir].dump})"
-    }
-  end
-
-  script.puts "$LOAD_PATH.unshift(#{"#{root}/lib/site_ruby/1.8".dump})"
-  script.puts "$LOAD_PATH.unshift(#{"#{root}/lib/site_ruby/1.8/#{cfg["sitearch"]}".dump})"
-
-  if gems
-    script.write <<EOF
-
-require 'rubygems'
-
-# Virtual Rubygems should not fiddle with ~/.gemrc
-def Gem.find_home
-  "#{root}/lib/gemhome/"
-end
+cat >gemrc <<EOF
+gem: --no-user-install --no-ri --no-rdoc
 EOF
-  end
-}
 
-def patch_settings(config, values)
-  values.inject(config) { |cfg, (key, value)|
-    cfg.gsub(/(.*#{Regexp.escape key} = ).*/i, "\\1#{value.dump}")
-  }
-end
+cat >bin/gem <<EOF
+#!/bin/sh
+$DIR/bin/ruby -S gem "\$@"
+EOF
 
-File.open("#{root}/lib/site_ruby/1.8/rbconfig.rb", "wb") { |script|
-  script.puts "# This file has been patched by virtualrb on #{Time.now}"
-  script.puts "# for #{ruby}"
-  script.puts "# relocated to #{root}"
-  script.puts "# #{version}"
+cat >bin/irb <<EOF
+#!/bin/sh
+$DIR/bin/ruby -S irb "\$@"
+EOF
 
-  config = patch_settings(File.read(find_rbconfig(ruby)),
-                          'TOPDIR' => root,
-                          'CONFIG["ruby_install_name"]' => "ruby",
-                          'CONFIG["sitedir"]' => root + "/lib/site_ruby",
-                          'CONFIG["archdir"]' => cfg["archdir"])
+cat >VIRTUALRB <<EOF
+$RUBY: $VER
+virtualized on $(date) as
+$DIR/bin/ruby
+EOF
 
-  script.write(config.
-               gsub(/.*RUBY_FRAMEWORK.*/, ''). # no special deal on OS X
-               gsub(/.*APPLE_GEM_HOME.*/, '')  #      ----- " -----
-               )
-}
+chmod 0755 bin/*
 
-if gems
-  begin
-    require 'rubygems'
-  rescue LoadError
-    abort "* No Rubygems found, please install manually in the activated env."
-  end
-
-  begin
-    gem 'rubygems-update', gemversion
-  rescue LoadError
-    p $!
-    abort "* No appropriate rubygems-update found to install Rubygems into\n" +
-      "    the virtual env, please gem install rubygems-update."
-  end
-
-  update_dir = $LOAD_PATH.find { |fn| fn =~ /rubygems-update/ }
-
-  if update_dir.nil?
-    abort "* Internal error in virtualrb, where has the rubygems-update gone?  Please file a bug."
-  else
-    update_dir = File.dirname(update_dir)
-    Dir.chdir update_dir
-    update_dir =~ /([0-9.]*)$/
-    puts "* Installing RubyGems #{$1}"
-    system "#{root}/bin/ruby setup.rb"
-    puts "* Consider running"
-    puts "    #{root}/bin/gem sources -a http://gems.github.com"
-  end
-end
-
-puts "* virtual Ruby set up, run to enter:"
-puts "    source #{root}/bin/activate"
+cat VIRTUALRB

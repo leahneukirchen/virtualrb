@@ -1,0 +1,87 @@
+= virtualrb - Virtualize Ruby installations
+
+THIS IS ALPHA SOFTWARE THAT HAS NOT BEEN TESTED WELL---USE AT YOUR OWN RISK!
+
+Idea inspired by Python's virtualenv: http://pypi.python.org/pypi/virtualenv
+
+
+== Rationale
+
+Do you want to play with Ruby libraries and gems, but don't want to
+mess up your system installation?
+
+Do you need to run several applications on the same system and want
+full control over the installed versions?
+
+Do you need to test your code under various setups?
+
+Are you a user and want to install your own libraries and gems on a
+shared server without having to hack around?
+
+Then virtualrb is for you!  It creates a virtual Ruby installation
+where you can tinker around without modifiying the system Ruby.
+
+
+== Usage
+
+   virtualrb $ROOT
+     to set up a new virtual Ruby in $ROOT/bin/ruby
+
+   virtualrb $ROOT /usr/bin/ruby-2.0.0
+     to set up a new virtual Ruby using the given interpreter
+     (default: search "ruby" in $PATH.)
+
+Now, you just can run
+
+    $ROOT/bin/ruby script.rb
+
+or
+
+    $ROOT/bin/irb
+
+or other tools using -S:
+
+    $ROOT/bin/ruby -S rake ...
+
+You can install/update gems inside the virtualized environment using
+
+    $ROOT/bin/gem
+
+
+== What works
+
+* Plain Ruby libraries.
+* Ruby apps with correct she-bang line, pointing to the virtualized Ruby.
+* Installing Rubygems, including building native extensions.
+* Assuming $RUBY is the current interpreter (e.g. rake's FileUtils.ruby).
+* Installing non-gem libraries to $ROOT/lib and being able to require them.
+
+
+== What won't work
+
+* Too clever (or too naive!) software.
+* Software that trusts rbconfig.rb or Gem.ruby.
+
+
+== How it works
+
+* We build a POSIX shell wrapper script for Ruby which sets
+  GEM_HOME, GEM_PATH, GEMRC, PATH, RUBYLIB and RUBY.
+  That's all.
+
+
+== History
+
+Based upon a similar tool for Ruby 1.8, written in 2008 (see git tag "v1"),
+way before RVM, rbenv, chruby.
+
+
+== Copyright
+
+virtualrb is in the public domain.
+
+To the extent possible under law,
+Christian Neukirchen <chneukirchen@gmail.com>
+has waived all copyright and related or neighboring rights to this work.
+
+http://creativecommons.org/publicdomain/zero/1.0/
